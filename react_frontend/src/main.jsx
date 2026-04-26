@@ -254,7 +254,7 @@ function App() {
     }
     setToolOutput("FitAI is generating your personalized result...");
     try {
-      const response = await fetch(`${API_BASE}/tool`, {
+      const response = await fetch("https://fitness-nutrition-agent.onrender.com/tool", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -342,7 +342,7 @@ function App() {
     const waiting = [...chat, { role: "user", text: userText, date: now() }, { role: "bot", text: "FitAI is thinking...", typing: true, date: now() }];
     persist(KEYS.chat, setChat, waiting);
     try {
-      const response = await fetch(`${API_BASE}/chat`, {
+      const response = await fetch("https://fitness-nutrition-agent.onrender.com/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
