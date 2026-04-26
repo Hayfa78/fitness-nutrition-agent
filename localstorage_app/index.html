@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FitAI Coach</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="logo">FC</div>
+      <div>
+        <h1>FitAI Coach</h1>
+        <p>Fitness and nutrition dashboard</p>
+      </div>
+    </div>
+
+    <form id="profileForm" class="panel">
+      <h2>Profile</h2>
+      <div class="grid two">
+        <label>Age <input id="age" type="number" min="12" placeholder="21"></label>
+        <label>Gender
+          <select id="gender">
+            <option value="male">Male</option>
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+          </select>
+        </label>
+        <label>Height (cm) <input id="height" type="number" placeholder="175"></label>
+        <label>Weight (kg) <input id="weight" type="number" step="0.1" placeholder="78"></label>
+        <label>Goal
+          <select id="goal">
+            <option value="lose weight">Lose weight</option>
+            <option value="gain muscle">Gain muscle</option>
+            <option value="maintain">Maintain</option>
+          </select>
+        </label>
+        <label>Activity
+          <select id="activity">
+            <option value="sedentary">Sedentary</option>
+            <option value="light">Light</option>
+            <option value="moderate">Moderate</option>
+            <option value="active">Active</option>
+          </select>
+        </label>
+        <label>Fitness Level
+          <select id="fitnessLevel">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </label>
+        <label>Training Place
+          <select id="place">
+            <option value="home">Home</option>
+            <option value="gym">Gym</option>
+          </select>
+        </label>
+      </div>
+      <label>Allergies or restrictions
+        <input id="restrictions" placeholder="nuts, lactose, vegetarian...">
+      </label>
+      <label>Budget
+        <select id="budget">
+          <option value="normal">Normal</option>
+          <option value="low">Low budget</option>
+          <option value="high">Flexible</option>
+        </select>
+      </label>
+      <button class="primary" type="submit">Save Profile</button>
+    </form>
+
+    <section class="panel">
+      <h2>Quick Logs</h2>
+      <div class="stack">
+        <input id="mealInput" placeholder="Meal: chicken and rice">
+        <button id="logMealBtn">Log Meal</button>
+        <input id="workoutInput" placeholder="Workout: completed leg day">
+        <button id="logWorkoutBtn">Log Workout</button>
+        <input id="weightInput" type="number" step="0.1" placeholder="Current weight kg">
+        <button id="logWeightBtn">Log Weight</button>
+      </div>
+    </section>
+  </aside>
+
+  <main>
+    <div class="main-shell">
+    <header class="hero">
+      <div class="hero-copy">
+        <p class="eyebrow">Personal AI fitness dashboard</p>
+        <h2>FitAI Coach</h2>
+        <p class="subtitle">Plan meals, training, recovery, and progress from one simple workspace.</p>
+      </div>
+      <div class="actions">
+        <button id="themeBtn">Dark Mode</button>
+        <button id="printBtn">Export Report</button>
+        <button id="resetBtn" class="danger">Reset Data</button>
+      </div>
+    </header>
+
+    <section id="onboarding" class="panel onboarding"></section>
+
+    <div id="profileBanner" class="banner"></div>
+
+    <section id="dailyRecommendation" class="recommendation"></section>
+
+    <section class="cards" id="dashboardCards"></section>
+
+    <section class="layout">
+      <div class="panel">
+        <div class="section-title">
+          <h2>FitAI Chat</h2>
+          <span>Tool-calling style router</span>
+        </div>
+        <div class="chat-wrap">
+          <div id="chatMessages" class="chat"></div>
+          <form id="chatForm" class="chat-form">
+            <input id="chatInput" placeholder="Ask FitAI about meals, workouts, or progress...">
+            <button class="primary" type="submit">Send</button>
+          </form>
+        </div>
+        <div class="chips">
+          <button data-prompt="I want to lose weight">Lose weight</button>
+          <button data-prompt="I ate chicken and rice">Log meal</button>
+          <button data-prompt="I completed leg day">Log workout</button>
+          <button data-prompt="Show my progress">Progress</button>
+          <button data-prompt="Make a grocery list">Grocery list</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">
+          <h2>FitAI Tools</h2>
+          <span>Instant calculations</span>
+        </div>
+        <div class="tool-grid">
+          <button id="calcBtn"><span>Calories</span><small>BMI, BMR, macros</small></button>
+          <button id="workoutBtn"><span>Workout</span><small>Weekly training plan</small></button>
+          <button id="mealPlanBtn"><span>Meal Plan</span><small>Meals and macros</small></button>
+          <button id="hydrationBtn"><span>Hydration</span><small>Daily water target</small></button>
+          <button id="groceryBtn"><span>Groceries</span><small>Shopping list</small></button>
+          <button id="recoveryBtn"><span>Recovery</span><small>Sleep and soreness</small></button>
+        </div>
+        <div id="toolOutput" class="output"></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="panel">
+        <div class="section-title">
+          <h2>Workout Checklist</h2>
+          <span>Track sets, skips, and difficulty</span>
+        </div>
+        <div id="workoutChecklist" class="checklist"></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">
+          <h2>Meal Diary</h2>
+          <span>Today and this week</span>
+        </div>
+        <div id="mealDiary" class="diary"></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="panel">
+        <div class="section-title">
+          <h2>Progress Charts</h2>
+          <span>Simple localStorage trends</span>
+        </div>
+        <div id="charts" class="charts"></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-title">
+          <h2>Achievements</h2>
+          <span>Milestones</span>
+        </div>
+        <div id="achievements" class="achievements"></div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="panel">
+        <h2>Daily Check-In</h2>
+        <div class="grid two">
+          <label>Sleep hours <input id="sleepInput" type="number" step="0.5" placeholder="7"></label>
+          <label>Mood 1-10 <input id="moodInput" type="number" min="1" max="10" placeholder="7"></label>
+          <label>Soreness 1-10 <input id="sorenessInput" type="number" min="1" max="10" placeholder="4"></label>
+          <label>Energy 1-10 <input id="energyInput" type="number" min="1" max="10" placeholder="7"></label>
+        </div>
+        <button id="checkinBtn" class="primary">Save Check-In</button>
+      </div>
+
+      <div class="panel">
+        <h2>Weekly Progress</h2>
+        <div id="weeklySummary" class="output"></div>
+      </div>
+    </section>
+
+    <section id="printReport" class="panel report">
+      <h2>Weekly FitAI Report</h2>
+      <div id="reportContent"></div>
+    </section>
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.log
+*.err
+meal_log.json
+workout_log.json
+hydration_log.json
+checkin_log.json
+profile.json
+react_frontend/node_modules/
+react_frontend/dist/
+localstorage_app/__pycache__/
