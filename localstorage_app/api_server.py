@@ -1,17 +1,14 @@
 import json
-import mimetypes
 import os
+import re
 import sys
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import traceback
 from pathlib import Path
+from typing import Any, Optional
 
 for proxy_name in (
-    "HTTP_PROXY",
-    "HTTPS_PROXY",
-    "ALL_PROXY",
-    "http_proxy",
-    "https_proxy",
-    "all_proxy",
+    "HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY",
+    "http_proxy", "https_proxy", "all_proxy",
 ):
     os.environ.pop(proxy_name, None)
 os.environ["NO_PROXY"] = "localhost,127.0.0.1,::1"
@@ -22,276 +19,337 @@ PROJECT_DIR = APP_DIR.parent
 sys.path.insert(0, str(PROJECT_DIR))
 
 from dotenv import load_dotenv
-from langchain_core.messages import AIMessage
+
+load_dotenv(PROJECT_DIR / ".env", override=True)
+
+import uvicorn
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 from agent import FitnessChat
-
-load_dotenv(PROJECT_DIR / ".env")
+from memory import update_profile as _update_profile
+from tools import (
+    calculate_calories,
+    calculate_hydration_needs,
+    check_goal_feasibility,
+    estimate_meal,
+    generate_grocery_list,
+    generate_meal_plan,
+    generate_motivation,
+    generate_recipe,
+    generate_recovery_advice,
+    generate_weekly_report,
+    generate_workout_plan,
+    get_dashboard_data,
+    get_progress_data,
+    record_meal,
+    suggest_progressive_overload,
+)
 
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 API_KEY = os.getenv("GEMINI_API_KEY")
 
+# ── One shared agent instance ─────────────────────────────────────────────────
 
-def friendly_error(exc):
-    text = str(exc)
-    lower = text.lower()
-    if "resource_exhausted" in lower or "quota" in lower or "429" in lower:
-        return {
-            "status": 429,
-            "error": "FitAI reached the Gemini request limit. Please wait a minute and try again.",
-        }
-    if "10061" in lower or "connection refused" in lower or "failed to connect" in lower:
-        return {
-            "status": 503,
-            "error": "Coach is temporarily unavailable. Please try again.",
-        }
-    if "api_key" in lower or "api key" in lower:
-        return {
-            "status": 401,
-            "error": "The backend API key is missing or invalid. Check your environment variables.",
-        }
-    return {
-        "status": 500,
-        "error": "Coach is temporarily unavailable. Please try again.",
-    }
+_chat_instance: Optional[FitnessChat] = None
 
 
-def json_response(handler, payload, status=200):
-    body = json.dumps(payload).encode("utf-8")
-    handler.send_response(status)
-    handler.send_header("Content-Type", "application/json")
-    handler.send_header("Content-Length", str(len(body)))
-    handler.end_headers()
-    handler.wfile.write(body)
+def _get_chat() -> FitnessChat:
+    global _chat_instance
+    if _chat_instance is None:
+        _chat_instance = FitnessChat()
+    return _chat_instance
 
 
-def build_prompt(message, profile, logs):
-    return f"""You are FitAI, a careful fitness and nutrition AI assistant.
+# ── FastAPI app ───────────────────────────────────────────────────────────────
 
-Use the user's profile and localStorage logs to answer personally.
-Always consider these context fields when present:
-- goal
-- fitness level
-- training place
-- allergies or dietary restrictions
-- last workout
-- meals logged today
-- preferred workout time
-- disliked foods
-- favorite meals
-- preferred cuisine
-- equipment available
+app = FastAPI(title="FitAI API")
 
-Do not pretend to be a doctor. Give safe, practical advice.
-If the user describes dangerous behavior, extreme weight loss, training through pain,
-overtraining, very low calories, or poor recovery, warn them and suggest a safer alternative.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:8504",
+        "http://127.0.0.1:8504",
+        "http://localhost:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-User profile:
-{json.dumps(profile, indent=2)}
-
-Recent local logs:
-{json.dumps(logs, indent=2)[:6000]}
-
-User message:
-{message}
-
-Answer as FitAI in a clear, helpful way. Keep it structured but not too long."""
+# ── Request models ────────────────────────────────────────────────────────────
 
 
-def ask_llm(message, profile, logs):
-    if not API_KEY:
-        return "The backend API key is missing. Add GEMINI_API_KEY to your environment and restart the server."
-
-    chat = FitnessChat()
-    messages = chat.send_message(message, {"profile": profile, "logs": logs})
-    for msg in reversed(messages):
-        content = getattr(msg, "content", "")
-        if isinstance(msg, AIMessage) and content:
-            return content if isinstance(content, str) else str(content)
-    return "I could not generate a response."
+class ChatRequest(BaseModel):
+    message: str
+    profile: Optional[dict[str, Any]] = None
+    logs: Optional[dict[str, Any]] = None
 
 
-def build_tool_prompt(tool, profile, logs):
-    common = f"""You are FitAI, an AI fitness and nutrition coach.
-
-Personalize everything using this full user profile and localStorage history.
-
-Profile:
-{json.dumps(profile, indent=2)}
-
-Logs and context:
-{json.dumps(logs, indent=2)[:6000]}
-
-Safety rules:
-- Avoid extreme calorie deficits.
-- Warn against training through pain.
-- Recommend recovery when sleep, soreness, or energy are poor.
-- Respect allergies, disliked foods, preferred cuisine, favorite meals, available equipment, training place, and preferred workout time.
-"""
-    prompts = {
-        "calories": """
-Generate personalized calorie and macro targets.
-Include BMI, BMR, TDEE, goal calories, protein, carbs, fat, and a short explanation.
-Use clear headings and concise bullet points.
-""",
-        "workout": """
-Generate a personalized weekly workout plan.
-Use the user's goal, fitness level, training place, equipment, recovery, and last workout.
-
-Return ONLY valid JSON in this exact shape:
-{
-  "summary": "short personalized summary",
-  "days_per_week": 3,
-  "difficulty": "beginner",
-  "progression": "simple progression instruction",
-  "exercises": [
-    {"name": "Exercise name", "sets": 3, "reps": "10-12", "rest": "60 sec"}
-  ]
-}
-""",
-        "meal_plan": """
-Generate a personalized daily meal plan based on calorie goal, allergies/restrictions,
-disliked foods, favorite meals, preferred cuisine, and budget.
-Return ONLY valid JSON in this exact shape:
-{
-  "summary": "short personalized summary",
-  "meals": [
-    {"name": "Breakfast", "food": "meal name", "calories": 450, "protein": 35, "carbs": 50, "fat": 12}
-  ],
-  "notes": "short practical notes"
-}
-""",
-        "meal_estimate": """
-Estimate the calories and macros for the meal in logs.meal_to_estimate.
-Use the user's profile and preferences only for context. Do not avoid the food unless it conflicts with allergies.
-Return ONLY valid JSON in this exact shape:
-{
-  "meal": "meal name",
-  "calories": 450,
-  "protein": 25,
-  "carbs": 55,
-  "fat": 14,
-  "note": "short practical note"
-}
-""",
-        "hydration": """
-Generate a personalized hydration target based on body weight, activity level, training place, and weather/activity assumptions.
-Include a practical drinking schedule.
-""",
-        "groceries": """
-Generate a grocery list for the user's goal and preferences.
-Avoid disliked foods and allergies. Favor preferred cuisine and budget.
-""",
-        "recovery": """
-Generate a sleep and recovery recommendation from the user's latest check-in, soreness, energy, and workout history.
-""",
-        "weekly_report": """
-Generate a personalized weekly fitness report.
-Include:
-- short summary
-- stats overview
-- what went well
-- what needs adjustment
-- next week recommendation
-- next week workout and nutrition focus
-
-Use natural progress language, for example:
-"You completed 2/3 workouts this week. One more would keep you on track."
-
-Keep it clear, supportive, and personalized.
-""",
-    }
-    return common + prompts.get(tool, "\nGenerate a helpful personalized response for this tool.")
+class ToolRequest(BaseModel):
+    tool: str
+    profile: Optional[dict[str, Any]] = None
+    logs: Optional[dict[str, Any]] = None
 
 
-def ask_tool(tool, profile, logs):
-    if not API_KEY:
-        return {"reply": "The backend API key is missing. Add GEMINI_API_KEY to your environment and restart the server."}
+# ── Helpers ───────────────────────────────────────────────────────────────────
 
-    llm = ChatGoogleGenerativeAI(
+
+def _sync_profile(profile: dict[str, Any] | None) -> None:
+    if not profile:
+        return
+    for field, value in profile.items():
+        if value is not None:
+            _update_profile(field, value if isinstance(value, str) else str(value))
+
+
+def _llm() -> ChatGoogleGenerativeAI:
+    return ChatGoogleGenerativeAI(
         model=MODEL_NAME,
         google_api_key=API_KEY,
         temperature=0.25,
     )
-    text = llm.invoke(build_tool_prompt(tool, profile, logs)).content.strip()
-
-    if tool in {"workout", "meal_plan", "meal_estimate"}:
-        try:
-            clean = text.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-            return {"reply": text, "data": json.loads(clean)}
-        except Exception:
-            return {"reply": text, "data": None}
-
-    return {"reply": text}
 
 
-class FitAIHandler(BaseHTTPRequestHandler):
-    def end_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        super().end_headers()
+def _parse_json_text(text: str) -> dict | None:
+    try:
+        clean = (
+            text.strip()
+            .removeprefix("```json")
+            .removeprefix("```")
+            .removesuffix("```")
+            .strip()
+        )
+        return json.loads(clean)
+    except Exception:
+        return None
 
-    def do_OPTIONS(self):
-        self.send_response(204)
-        self.end_headers()
 
-    def do_GET(self):
-        path = self.path.split("?", 1)[0]
-        if path == "/health":
-            json_response(self, {"ok": True, "service": "FitAI API"})
-            return
+def _error_reply(exc: Exception) -> dict:
+    text = str(exc).lower()
+    if "resource_exhausted" in text or "quota" in text or "429" in text:
+        return {
+            "reply": "FitAI reached the Gemini request limit. Please wait a minute and try again.",
+            "data": None,
+        }
+    if "api_key" in text or "api key" in text:
+        return {
+            "reply": "The backend API key is missing or invalid. Check your environment variables.",
+            "data": None,
+        }
+    return {"reply": "Coach is temporarily unavailable. Please try again.", "data": None}
 
-        if path == "/":
-            path = "/index.html"
 
-        file_path = (APP_DIR / path.lstrip("/")).resolve()
-        if not str(file_path).startswith(str(APP_DIR)) or not file_path.exists() or file_path.is_dir():
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not found")
-            return
+def _clean_tool_reply(result: dict) -> dict:
+    """Apply clean_markdown to the reply field of any tool result dict."""
+    if isinstance(result.get("reply"), str):
+        result["reply"] = clean_markdown(result["reply"])
+    return result
 
-        content_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-        self.send_response(200)
-        self.send_header("Content-Type", content_type)
-        self.end_headers()
-        self.wfile.write(file_path.read_bytes())
 
-    def do_POST(self):
-        if self.path not in {"/api/chat", "/chat", "/api/tool", "/tool"}:
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not found")
-            return
+def clean_markdown(text: str) -> str:
+    """Strip markdown formatting so plain-text frontends render cleanly."""
+    # Remove header markers (### ## #) but keep the heading text
+    text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
+    # Remove bold/italic markers (** __ * _)
+    text = re.sub(r"\*{1,2}|_{1,2}", "", text)
+    # Replace markdown bullet points (* or -) at line start with a plain dash
+    text = re.sub(r"^\s*[*-]\s+", "- ", text, flags=re.MULTILINE)
+    # Collapse 3+ consecutive blank lines down to 2
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
-        try:
-            length = int(self.headers.get("Content-Length", "0"))
-            data = json.loads(self.rfile.read(length).decode("utf-8"))
-            if self.path in {"/api/tool", "/tool"}:
-                result = ask_tool(
-                    data.get("tool", ""),
-                    data.get("profile", {}),
-                    data.get("logs", {}),
-                )
-            else:
-                result = {
-                    "reply": ask_llm(
-                        data.get("message", ""),
-                        data.get("profile", {}),
-                        data.get("logs", {}),
-                    )
-                }
-            json_response(self, result)
-        except Exception as exc:
-            error = friendly_error(exc)
-            json_response(self, {"error": error["error"]}, error["status"])
+
+# ── Local (no-LLM) tool handlers ──────────────────────────────────────────────
+
+LOCAL_TOOLS = {"calories", "hydration", "dashboard", "progress"}
+
+
+def _run_local_tool(tool_name: str, profile: dict, logs: dict) -> dict[str, Any]:
+    if tool_name == "calories":
+        data = calculate_calories({"profile": profile})
+        if not data.get("ok"):
+            missing = ", ".join(data.get("missing_fields", []))
+            return {"reply": f"Complete your profile first. Missing: {missing}.", "data": data}
+        m = data["macros"]
+        reply = (
+            "Personalized calorie and macro targets:\n"
+            f"- BMI: {data['bmi']} ({data['bmi_category']})\n"
+            f"- BMR: {data['bmr']} kcal\n"
+            f"- Maintenance/TDEE: {data['tdee']} kcal\n"
+            f"- Goal calories: {data['calorie_target']} kcal/day\n"
+            f"- Protein: {m['protein_g']}g | Carbs: {m['carbs_g']}g | Fat: {m['fat_g']}g\n"
+            f"- Weekly pace: {data['recommended_weekly_weight_change_percent']}% body weight"
+        )
+        return {"reply": reply, "data": data}
+
+    if tool_name == "hydration":
+        data = calculate_hydration_needs({"profile": profile})
+        reply = (
+            "Personalized hydration target:\n"
+            f"- Water: {data['water_liters']}L/day ({data['water_ml']} ml)\n"
+            f"- Based on: {data['weight_kg']} kg and {data['activity_level']} activity\n"
+            "- Add extra water around sweaty workouts or in hot weather."
+        )
+        return {"reply": reply, "data": data}
+
+    if tool_name == "dashboard":
+        data = get_dashboard_data({"profile": profile})
+        return {"reply": json.dumps(data, indent=2), "data": data}
+
+    if tool_name == "progress":
+        data = get_progress_data({**logs, "profile": profile})
+        return {"reply": json.dumps(data, indent=2), "data": data}
+
+    return {"reply": f"Unsupported local tool: {tool_name}", "data": None}
+
+
+# ── AI tool handlers ──────────────────────────────────────────────────────────
+
+_JSON_TOOLS = {"meal_plan", "workout", "meal_estimate", "recipe"}
+
+
+def _run_ai_tool(tool_name: str, profile: dict, logs: dict) -> dict[str, Any]:
+    data = {"profile": profile, **logs}
+
+    # Type 1: pure computation, no LLM needed
+    if tool_name == "goal_feasibility":
+        result = check_goal_feasibility(data)
+        reply = result.get("message", str(result))
+        if not result.get("feasible", True):
+            reply += f" (Need {result.get('recommended_weeks')} weeks for safe progress.)"
+        return {"reply": reply, "data": result}
+
+    if tool_name == "progressive_overload":
+        result = suggest_progressive_overload(data)
+        suggestions = " | ".join(result.get("suggestions", []))
+        reply = f"Progressive overload for {result.get('exercise', 'exercise')}: {suggestions}"
+        return {"reply": reply, "data": result}
+
+    # Type 2: gather context then call LLM
+    if tool_name == "meal_plan":
+        ctx = generate_meal_plan(data)
+    elif tool_name == "workout":
+        ctx = generate_workout_plan(data)
+    elif tool_name == "meal_estimate":
+        meal_text = logs.get("meal_to_estimate") or data.get("meal_to_estimate", "")
+        data["meal_to_estimate"] = meal_text
+        ctx = estimate_meal(data)
+    elif tool_name == "groceries":
+        ctx = generate_grocery_list(data)
+    elif tool_name == "recovery":
+        ctx = generate_recovery_advice(data)
+    elif tool_name == "weekly_report":
+        ctx = generate_weekly_report(data)
+    elif tool_name == "recipe":
+        ctx = generate_recipe(data)
+    elif tool_name == "motivation":
+        ctx = generate_motivation(data)
+    else:
+        return {"reply": f"Unsupported tool: {tool_name}", "data": None}
+
+    if not ctx.get("ok"):
+        return {"reply": ctx.get("message", "Could not prepare tool context."), "data": ctx}
+
+    if not API_KEY:
+        return {
+            "reply": "The backend API key is missing. Add GEMINI_API_KEY to your environment.",
+            "data": None,
+        }
+
+    instruction = ctx.get("instruction_for_agent", "")
+    text = _llm().invoke(instruction).content.strip()
+
+    parsed = _parse_json_text(text) if tool_name in _JSON_TOOLS else None
+
+    # After estimating a meal, also record it
+    if tool_name == "meal_estimate" and parsed:
+        record_meal({
+            "meal": parsed.get("meal") or logs.get("meal_to_estimate", ""),
+            "calories": parsed.get("calories", 0),
+            "protein_g": parsed.get("protein", 0),
+            "carbs_g": parsed.get("carbs", 0),
+            "fat_g": parsed.get("fat", 0),
+        })
+
+    return {"reply": text, "data": parsed}
+
+
+# ── Endpoints ─────────────────────────────────────────────────────────────────
+
+
+@app.get("/health")
+def health():
+    return {
+        "ok": True,
+        "service": "FitAI API",
+        "model": MODEL_NAME,
+        "key_loaded": bool(API_KEY),
+        "key_hint": API_KEY[-4:] if API_KEY else "",
+    }
+
+
+@app.post("/chat")
+def chat(req: ChatRequest):
+    profile = req.profile or {}
+    logs = req.logs or {}
+    _sync_profile(profile)
+    try:
+        reply = _get_chat().send_message(
+            req.message, {"profile": profile, "logs": logs}
+        )
+        print(f"DEBUG reply: '{reply}'")
+        print(f"DEBUG reply type: {type(reply)}")
+        print(f"DEBUG reply length: {len(str(reply))}")
+        return {"reply": clean_markdown(reply)}
+    except Exception as e:
+        traceback.print_exc()
+        return {"reply": f"Error: {str(e)}"}
+
+
+@app.post("/tool")
+def tool_endpoint(req: ToolRequest):
+    profile = req.profile or {}
+    logs = req.logs or {}
+    _sync_profile(profile)
+    tool_name = req.tool
+
+    if not tool_name:
+        return {"reply": "No tool specified.", "data": None}
+
+    try:
+        if tool_name in LOCAL_TOOLS:
+            return _clean_tool_reply(_run_local_tool(tool_name, profile, logs))
+        return _clean_tool_reply(_run_ai_tool(tool_name, profile, logs))
+    except Exception as exc:
+        return _error_reply(exc)
+
+
+# Legacy path aliases
+@app.post("/api/chat")
+def api_chat(req: ChatRequest):
+    return chat(req)
+
+
+@app.post("/api/tool")
+def api_tool(req: ToolRequest):
+    return tool_endpoint(req)
+
+
+# ── Server entry point ────────────────────────────────────────────────────────
+
+
+def run_server():
+    port = int(os.getenv("PORT", os.getenv("FITAI_PORT", "8504")))
+    print(f"FitAI API running at http://127.0.0.1:{port}")
+    print("Your API key stays in .env and is not sent to the browser.")
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", os.getenv("FITAI_PORT", "8504")))
-    server = ThreadingHTTPServer(("0.0.0.0", port), FitAIHandler)
-    print(f"FitAI API running at http://127.0.0.1:{port}")
-    print("Your API key stays in .env and is not sent to the browser.")
-    server.serve_forever()
+    run_server()

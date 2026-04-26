@@ -1,14 +1,11 @@
 # FitAI Coach - localStorage Version
 
-This folder contains a simple browser-based Fitness and Nutrition AI Coach.
+This folder contains the local Python API used by the React Fitness and Nutrition AI app.
 
 ## Project Structure
 
 ```text
 localstorage_app/
-  index.html   # UI layout: dashboard, profile, logs, chat, tools
-  style.css    # Clean dashboard styling
-  app.js       # localStorage, calculators, tools, frontend chat API call
   api_server.py # local backend that keeps the API key hidden
 ```
 
@@ -29,21 +26,28 @@ No database is used. The app stores data in browser localStorage:
 
 ## How To Open With The API
 
-From the main project folder, run:
+From the main project folder, run the backend:
 
 ```powershell
 .\.venv\Scripts\python.exe localstorage_app\api_server.py
 ```
 
-Then open:
+Then start the React frontend in another terminal:
+
+```powershell
+cd react_frontend
+npm run dev
+```
+
+Open:
 
 ```text
-http://localhost:8503
+http://127.0.0.1:5173
 ```
 
 ## API Key Note
 
-The frontend does not include or expose an API key. The chat sends requests to `api_server.py` using `/chat`.
+The frontend does not include or expose an API key. The React app sends requests to `api_server.py` using `/chat` and `/tool`.
 The backend reads `GEMINI_API_KEY` from the project `.env` file.
 
 ## Added UI Features

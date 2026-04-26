@@ -192,6 +192,8 @@ function App() {
 
   function buildContext() {
     return {
+      profile,
+      calculatedMetrics: metrics,
       meals,
       workouts,
       weights,

@@ -301,3 +301,359 @@ def get_dashboard_data(data: dict[str, Any] | None = None) -> dict[str, Any]:
 
 def get_profile_data(data: dict[str, Any] | None = None) -> dict[str, Any]:
     return {"ok": True, "profile": _profile_from_input(data)}
+
+
+# ── Type 1: pure math/rule-based ─────────────────────────────────────────────
+
+def check_goal_feasibility(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    weight_kg = _number(data.get("current_weight") or profile.get("weight"))
+    target_weight_kg = _number(data.get("target_weight"))
+    timeframe_weeks = _number(data.get("timeframe_weeks"), 12) or 12
+    goal = _text(data.get("goal") or profile.get("goal"), "maintain")
+
+    if weight_kg is None:
+        return {"ok": False, "missing_fields": ["current_weight or profile weight"]}
+
+    if target_weight_kg is None:
+        return {
+            "ok": True,
+            "feasible": True,
+            "message": f"No weight target provided. Goal is: {goal}.",
+            "recommendation": "Track progress weekly and adjust calorie intake accordingly.",
+        }
+
+    weight_change_kg = target_weight_kg - weight_kg
+    weekly_change_kg = weight_change_kg / timeframe_weeks
+
+    if weight_change_kg < 0:
+        feasible = abs(weekly_change_kg) <= 0.75
+        safe_weeks = round(abs(weight_change_kg) / 0.5)
+        category = "weight loss"
+    elif weight_change_kg > 0:
+        feasible = weekly_change_kg <= 0.25
+        safe_weeks = round(abs(weight_change_kg) / 0.2)
+        category = "muscle gain"
+    else:
+        return {"ok": True, "feasible": True, "message": "Target weight equals current weight — maintenance goal."}
+
+    return {
+        "ok": True,
+        "feasible": feasible,
+        "category": category,
+        "current_weight_kg": weight_kg,
+        "target_weight_kg": target_weight_kg,
+        "weight_change_kg": round(weight_change_kg, 1),
+        "timeframe_weeks": int(timeframe_weeks),
+        "weekly_change_kg": round(weekly_change_kg, 2),
+        "recommended_weeks": safe_weeks if not feasible else int(timeframe_weeks),
+        "message": (
+            f"Goal is achievable and safe within {int(timeframe_weeks)} weeks." if feasible
+            else f"Timeline too aggressive for safe {category}. Aim for {safe_weeks} weeks instead."
+        ),
+    }
+
+
+def suggest_progressive_overload(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    exercise = _text(data.get("exercise") or data.get("exercise_name"), "exercise")
+    current_weight_kg = _number(data.get("weight_kg") or data.get("load_kg"))
+    current_reps = int(_number(data.get("reps") or data.get("current_reps"), 10) or 10)
+    current_sets = int(_number(data.get("sets") or data.get("current_sets"), 3) or 3)
+    weeks_at_current = int(_number(data.get("weeks_at_current"), 1) or 1)
+    fitness_level = _text(
+        data.get("fitness_level") or profile.get("fitness_level"), "intermediate"
+    ).lower()
+
+    progression_interval = 2 if "begin" in fitness_level else 1
+    should_progress = weeks_at_current >= progression_interval
+
+    next_reps = current_reps + 1 if should_progress else current_reps
+    next_weight_kg = (
+        round(current_weight_kg * 1.05, 1)
+        if (current_weight_kg and current_reps >= 12 and should_progress)
+        else current_weight_kg
+    )
+    next_sets = (
+        current_sets + 1
+        if (should_progress and current_reps >= 15 and current_sets < 5)
+        else current_sets
+    )
+
+    suggestions = []
+    if should_progress:
+        if current_weight_kg and current_reps >= 12:
+            suggestions.append(f"Increase load: {current_weight_kg} kg → {next_weight_kg} kg (~5%)")
+        else:
+            suggestions.append(f"Add a rep per set: {current_reps} → {next_reps}")
+        if current_sets < 5 and current_reps >= 15:
+            suggestions.append(f"Add a set: {current_sets} → {next_sets}")
+    else:
+        weeks_left = progression_interval - weeks_at_current
+        suggestions.append(f"Hold current load for {weeks_left} more week(s) before progressing.")
+
+    return {
+        "ok": True,
+        "exercise": exercise,
+        "should_progress": should_progress,
+        "current": {"sets": current_sets, "reps": current_reps, "weight_kg": current_weight_kg},
+        "next": {"sets": next_sets, "reps": next_reps, "weight_kg": next_weight_kg},
+        "suggestions": suggestions,
+        "principle": "Increase weight ~5% or add 1-2 reps every 1-2 weeks to drive continued adaptation.",
+    }
+
+
+# ── Type 2: context collectors (no LLM calls, return instruction_for_agent) ──
+
+def generate_meal_plan(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    cal_data = calculate_calories({"profile": profile})
+    calorie_target = cal_data.get("calorie_target", "unknown")
+    macros = cal_data.get("macros", {})
+    meals_per_day = int(_number(profile.get("meals_per_day"), 3) or 3)
+    goal = _text(profile.get("goal"), "maintain")
+    dietary = _text(profile.get("dietary_preference") or data.get("dietary_preference"), "none")
+    allergies = _text(profile.get("allergies") or data.get("allergies"), "none")
+    cuisine = _text(data.get("preferred_cuisine") or data.get("cuisine"), "any")
+    return {
+        "ok": True,
+        "instruction_for_agent": (
+            f"Create a personalized {meals_per_day}-meal daily plan targeting {calorie_target} kcal. "
+            f"Macros: {macros.get('protein_g','?')}g protein, {macros.get('carbs_g','?')}g carbs, "
+            f"{macros.get('fat_g','?')}g fat. Goal: {goal}. "
+            f"Dietary restrictions: {dietary}. Allergies to avoid: {allergies}. "
+            f"Preferred cuisine: {cuisine}. "
+            "Return JSON: {\"summary\": \"...\", \"meals\": [{\"name\": \"...\", \"food\": \"...\", "
+            "\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}], \"notes\": \"...\"}"
+        ),
+        "context": {
+            "calorie_target": calorie_target,
+            "macros": macros,
+            "meals_per_day": meals_per_day,
+            "goal": goal,
+            "dietary_preference": dietary,
+            "allergies": allergies,
+            "preferred_cuisine": cuisine,
+        },
+    }
+
+
+def generate_workout_plan(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    goal = _text(profile.get("goal") or data.get("goal"), "general fitness")
+    fitness_level = _text(profile.get("fitness_level") or data.get("fitness_level"), "beginner")
+    training_place = _text(profile.get("training_place") or data.get("training_place"), "home")
+    days_per_week = int(_number(data.get("days_per_week"), 3) or 3)
+    equipment = _text(data.get("equipment") or data.get("available_equipment"), "bodyweight only")
+    return {
+        "ok": True,
+        "instruction_for_agent": (
+            f"Create a personalized {days_per_week}-day/week workout plan for a {fitness_level} "
+            f"training at {training_place} with {equipment}. Goal: {goal}. "
+            "Include warm-up, main exercises with sets/reps/rest, and cool-down. "
+            "IMPORTANT: every object in the exercises array MUST have a 'name' key with the exercise name as a string. "
+            "Return ONLY valid JSON in exactly this shape, no markdown, no extra text:\n"
+            "{\"summary\": \"short summary\", \"days_per_week\": 3, \"difficulty\": \"beginner\", "
+            "\"progression\": \"progression tip\", "
+            "\"exercises\": [{\"name\": \"Push-ups\", \"sets\": 3, \"reps\": \"10-12\", \"rest\": \"60 sec\"}]}"
+        ),
+        "context": {
+            "goal": goal,
+            "fitness_level": fitness_level,
+            "training_place": training_place,
+            "days_per_week": days_per_week,
+            "equipment": equipment,
+        },
+    }
+
+
+def estimate_meal(data: dict[str, Any]) -> dict[str, Any]:
+    meal_text = _text(
+        data.get("meal") or data.get("meal_to_estimate") or data.get("food"), ""
+    )
+    if not meal_text:
+        return {"ok": False, "message": "No meal description provided."}
+    profile = _profile_from_input(data)
+    goal = _text(profile.get("goal"), "maintain")
+    return {
+        "ok": True,
+        "meal": meal_text,
+        "instruction_for_agent": (
+            f"Estimate the calories and macros for: '{meal_text}'. "
+            f"User goal: {goal}. Use standard serving sizes. "
+            "Return JSON: {\"meal\": \"...\", \"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0, \"note\": \"...\"}"
+        ),
+    }
+
+
+def generate_grocery_list(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    goal = _text(profile.get("goal"), "maintain")
+    dietary = _text(profile.get("dietary_preference"), "none")
+    allergies = _text(profile.get("allergies"), "none")
+    budget = _text(data.get("budget"), "moderate")
+    cuisine = _text(data.get("preferred_cuisine"), "any")
+    days = int(_number(data.get("days"), 7) or 7)
+    return {
+        "ok": True,
+        "instruction_for_agent": (
+            f"Generate a {days}-day grocery list for goal: {goal}. "
+            f"Dietary preference: {dietary}. Exclude allergens: {allergies}. "
+            f"Budget: {budget}. Preferred cuisine: {cuisine}. "
+            "Group items by category: Proteins, Vegetables, Grains, Dairy/Alternatives, Extras. "
+            "Keep it practical and minimise waste."
+        ),
+        "context": {
+            "goal": goal,
+            "dietary_preference": dietary,
+            "allergies": allergies,
+            "budget": budget,
+            "days": days,
+        },
+    }
+
+
+def generate_recovery_advice(data: dict[str, Any]) -> dict[str, Any]:
+    checkins = _recent_entries(LOG_FILES["checkins"], 7)
+    workouts = _recent_entries(LOG_FILES["workouts"], 7)
+    latest = checkins[-1] if checkins else {}
+    sleep_hours = _number(latest.get("sleep_hours") or data.get("sleep_hours"), 7)
+    soreness = _text(latest.get("soreness") or data.get("soreness"), "unknown")
+    energy = _text(latest.get("energy") or data.get("energy"), "unknown")
+    workouts_this_week = len(workouts)
+    return {
+        "ok": True,
+        "instruction_for_agent": (
+            f"Generate personalised recovery advice. "
+            f"Sleep: {sleep_hours}h, Soreness: {soreness}, Energy: {energy}, "
+            f"Workouts this week: {workouts_this_week}. "
+            "Cover sleep optimisation, active recovery, soreness management, and rest-day activities. "
+            "Be specific and practical."
+        ),
+        "context": {
+            "sleep_hours": sleep_hours,
+            "soreness": soreness,
+            "energy": energy,
+            "workouts_this_week": workouts_this_week,
+            "recent_checkins": checkins[-3:] if checkins else [],
+        },
+    }
+
+
+def generate_weekly_report(data: dict[str, Any]) -> dict[str, Any]:
+    progress = get_progress_data({"days": 7})
+    profile = _profile_from_input(data)
+    goal = _text(profile.get("goal"), "general fitness")
+    cal_data = calculate_calories({"profile": profile})
+    calorie_target = cal_data.get("calorie_target", "unknown")
+    return {
+        "ok": True,
+        "instruction_for_agent": (
+            f"Generate a supportive weekly fitness report. Goal: {goal}. "
+            f"Calorie target: {calorie_target} kcal/day. "
+            f"This week: {progress['workouts_completed']} workouts, "
+            f"{progress['meals_logged']} meals logged, "
+            f"{progress['calories_logged']} kcal consumed, "
+            f"{progress['protein_logged_g']}g protein, "
+            f"{progress['hydration_logged_ml']}ml water, "
+            f"streak: {progress['streak_days']} days. "
+            "Include: summary, what went well, areas to improve, next-week recommendation. "
+            "Be warm, specific, and motivating."
+        ),
+        "context": progress,
+    }
+
+
+def generate_recipe(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    recipe_name = _text(
+        data.get("recipe") or data.get("dish") or data.get("food"), "a healthy high-protein meal"
+    )
+    dietary = _text(profile.get("dietary_preference") or data.get("dietary_preference"), "none")
+    allergies = _text(profile.get("allergies") or data.get("allergies"), "none")
+    servings = int(_number(data.get("servings"), 2) or 2)
+    return {
+        "ok": True,
+        "recipe": recipe_name,
+        "instruction_for_agent": (
+            f"Provide a detailed recipe for: '{recipe_name}' ({servings} servings). "
+            f"Dietary restrictions: {dietary}. Allergies: {allergies}. "
+            "Include: ingredients list, step-by-step instructions, prep/cook time, "
+            "and per-serving macros (calories, protein, carbs, fat). "
+            "Keep it practical and accessible."
+        ),
+        "context": {
+            "recipe": recipe_name,
+            "servings": servings,
+            "dietary_preference": dietary,
+            "allergies": allergies,
+        },
+    }
+
+
+def generate_motivation(data: dict[str, Any]) -> dict[str, Any]:
+    profile = _profile_from_input(data)
+    goal = _text(profile.get("goal"), "staying healthy")
+    progress = get_progress_data({"days": 7})
+    streak = progress.get("streak_days", 0)
+    workouts_this_week = progress.get("workouts_completed", 0)
+    mood = _text(data.get("mood") or data.get("feeling"), "neutral")
+    return {
+        "ok": True,
+        "instruction_for_agent": (
+            f"Write a personalised motivational message for someone with goal: '{goal}'. "
+            f"Streak: {streak} days. Workouts this week: {workouts_this_week}. "
+            f"Current mood: {mood}. "
+            "Be genuine, specific to their numbers, and encouraging without being generic."
+        ),
+        "context": {
+            "goal": goal,
+            "streak": streak,
+            "workouts_this_week": workouts_this_week,
+            "mood": mood,
+        },
+    }
+
+
+def enforce_dietary_restrictions(data: dict[str, Any]) -> dict[str, Any]:
+    meal = _text(data.get("meal") or data.get("food"), "")
+    profile = _profile_from_input(data)
+    dietary = _text(
+        profile.get("dietary_preference") or data.get("dietary_preference"), ""
+    ).lower()
+    raw_allergies = profile.get("allergies") or data.get("allergies") or ""
+    allergies = [a.strip().lower() for a in str(raw_allergies).split(",") if a.strip()]
+
+    restrictions_map = {
+        "vegan": ["meat", "chicken", "beef", "pork", "fish", "seafood", "dairy", "milk", "cheese", "egg", "honey"],
+        "vegetarian": ["meat", "chicken", "beef", "pork", "fish", "seafood"],
+        "gluten-free": ["wheat", "bread", "pasta", "gluten", "flour", "barley", "rye"],
+        "dairy-free": ["milk", "cheese", "butter", "cream", "dairy", "yogurt", "whey"],
+        "halal": ["pork", "alcohol", "wine", "beer"],
+        "kosher": ["pork", "shellfish", "shrimp", "crab", "lobster"],
+    }
+
+    violations = []
+    meal_lower = meal.lower()
+    for pref, blocked in restrictions_map.items():
+        if pref in dietary:
+            for item in blocked:
+                if item in meal_lower:
+                    violations.append(f"{item} (violates {pref})")
+    for allergen in allergies:
+        if allergen and allergen in meal_lower:
+            violations.append(f"{allergen} (allergen)")
+
+    return {
+        "ok": True,
+        "meal": meal,
+        "dietary_preference": dietary,
+        "allergies": allergies,
+        "violations": violations,
+        "is_safe": not violations,
+        "message": (
+            "This meal fits your dietary requirements."
+            if not violations
+            else f"Warning — contains: {', '.join(violations)}"
+        ),
+    }

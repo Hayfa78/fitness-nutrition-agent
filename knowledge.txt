@@ -1,15 +1,124 @@
-Weight loss requires a calorie deficit, meaning you consume fewer calories than you burn.
+# SECTION: Calorie Deficit and Weight Loss
+Weight loss requires a calorie deficit — consuming fewer calories than you burn.
+A moderate deficit of 300–500 kcal/day leads to sustainable fat loss of 0.25–0.5 kg per week.
+Extreme deficits (>700 kcal/day) risk muscle loss, metabolic adaptation, and nutrient deficiencies.
+Combining a moderate deficit with strength training helps preserve lean muscle while losing fat.
+Tracking calories even roughly improves adherence and outcomes.
 
-High-protein diets help preserve muscle and improve satiety, making it easier to lose weight.
+# SECTION: Safe Calorie Deficits
+A safe calorie deficit is typically 10–20% below your TDEE (Total Daily Energy Expenditure).
+For most adults: 300–500 kcal/day deficit for fat loss, 200–300 kcal/day surplus for muscle gain.
+Never eat below your BMR unless under medical supervision — this risks metabolic slowdown.
+Very low calorie diets (under 800 kcal/day) should only be followed under clinical supervision.
+A deficit of 500 kcal/day creates approximately 0.5 kg of fat loss per week (3,500 kcal = ~0.45 kg fat).
+Refeeds every 1–2 weeks at maintenance calories help prevent metabolic adaptation during long cuts.
 
-Strength training helps maintain or increase muscle mass during weight loss.
+# SECTION: Protein Intake
+Protein is essential for muscle repair, growth, immune function, and satiety.
+General recommendation: 1.6–2.2 g of protein per kg of body weight per day for active individuals.
+For fat loss: aim for the higher end (2.0–2.4 g/kg) to preserve muscle while in a deficit.
+For muscle gain: 1.6–2.0 g/kg is sufficient; more than 2.4 g/kg shows diminishing returns.
+Sedentary adults need around 0.8 g/kg (minimum RDA), but active people benefit from more.
+Good protein sources: chicken breast, eggs, Greek yogurt, tofu, lentils, fish, cottage cheese, whey.
+Spreading protein across 3–5 meals (20–40 g per meal) maximises muscle protein synthesis.
 
-Cardio exercises such as walking, running, and cycling increase daily calorie expenditure.
+# SECTION: Macronutrient Ratios
+A balanced macronutrient ratio depends on goals:
+- Fat loss: 30–40% protein, 20–30% fat, 30–40% carbohydrates
+- Muscle gain: 25–35% protein, 20–30% fat, 40–50% carbohydrates
+- Endurance: 15–20% protein, 20–25% fat, 55–65% carbohydrates
+- General health: 20–30% protein, 25–35% fat, 40–55% carbohydrates
+Carbohydrates are the primary fuel for high-intensity exercise; don't eliminate them for athletic goals.
+Dietary fat supports hormone production, fat-soluble vitamin absorption, and joint health.
+Fibre (25–35 g/day) improves satiety, digestion, and blood sugar stability.
 
-Hydration supports appetite regulation and overall metabolic health.
+# SECTION: Progressive Overload
+Progressive overload is the gradual increase of stress placed on the body during training.
+It is the primary driver of strength, muscle, and endurance gains over time.
+Methods to apply progressive overload:
+1. Increase load (weight) by 2.5–5% when you can complete all reps with good form.
+2. Add 1–2 reps per set before increasing weight.
+3. Add a set (e.g., 3×10 → 4×10) to increase volume.
+4. Reduce rest time between sets.
+5. Increase training frequency (add a session per week).
+Beginners can progress weekly; intermediate lifters every 2 weeks; advanced lifters monthly.
+Always prioritise technique — progress with sloppy form leads to injury, not gains.
+Deload every 4–8 weeks: reduce volume or intensity by 40–50% to allow full recovery.
 
-Sleep is important for recovery, hormone balance, and weight management.
+# SECTION: Training Frequency
+Training frequency refers to how often a muscle group or movement pattern is trained per week.
+Beginners: 2–3 full-body sessions per week is optimal for learning and adaptation.
+Intermediate: 3–4 sessions with upper/lower or push/pull splits.
+Advanced: 4–6 sessions with dedicated muscle-group splits or frequency-focused programming.
+Each muscle group benefits from being trained 2× per week for hypertrophy.
+Allow at least 48 hours of recovery between sessions targeting the same muscle group.
+More is not always better — recovery is when adaptation occurs, not during training.
+Signs of overtraining: persistent fatigue, declining performance, mood changes, sleep disruption.
 
-Balanced meals should include lean protein, fiber-rich vegetables, healthy fats, and complex carbohydrates.
+# SECTION: Recovery and Sleep
+Sleep is the most powerful recovery tool available — 7–9 hours per night is the target for adults.
+During deep sleep, growth hormone is released, driving muscle repair and fat metabolism.
+Consistently sleeping under 6 hours impairs strength, reaction time, and hormone balance.
+Active recovery (light walking, stretching, yoga) on rest days promotes blood flow without adding stress.
+Foam rolling and massage reduce muscle soreness and improve range of motion.
+Cold water immersion (10–15 min at 10–15°C) can reduce acute muscle soreness but may blunt adaptation.
+Nutrition for recovery: prioritise carbohydrates to refill glycogen and protein (20–40 g) post-workout.
+Chronic stress elevates cortisol, which impairs recovery, suppresses immunity, and promotes fat storage.
+Mental recovery (downtime, social connection, hobbies) is as important as physical rest.
 
-Processed foods and sugary drinks should be limited when trying to improve body composition.
+# SECTION: Hydration Science
+Water makes up 60–70% of body weight and is critical for every physiological process.
+Even mild dehydration (1–2% body weight loss) reduces strength, endurance, and cognitive performance.
+General guideline: 35 ml of water per kg of body weight per day as a baseline.
+Add 500–750 ml for every hour of moderate-intensity exercise; more in heat or humidity.
+Electrolytes (sodium, potassium, magnesium) are lost in sweat and must be replenished during prolonged exercise.
+Pale yellow urine indicates adequate hydration; dark yellow/amber indicates dehydration.
+Sports drinks are beneficial for sessions over 60–90 minutes; water is sufficient for shorter workouts.
+Caffeine and alcohol are diuretics — add extra water when consuming them.
+Thirst is a reliable but lagging indicator; drink consistently throughout the day rather than waiting for thirst.
+
+# SECTION: Injury Prevention
+Warming up for 5–10 minutes (light cardio + dynamic stretches) reduces injury risk.
+Progressive loading — not jumping too quickly in weight or volume — is the single best injury preventer.
+Pain during exercise is a warning signal — stop and assess; do not train through sharp or joint pain.
+Mobility work (hip flexors, shoulders, thoracic spine) prevents compensatory movement patterns.
+Adequate sleep and nutrition are critical for tissue repair; under-recovered tissue is more injury-prone.
+Overuse injuries develop gradually — watch for persistent soreness in a specific area over multiple sessions.
+Core stability training (planks, dead bugs, bird dogs) protects the spine during compound lifts.
+Use proper footwear and equipment suited to your activity.
+Listen to your body: a rest day is not a setback — it is part of the training plan.
+If pain persists for more than 3–5 days, consult a physiotherapist or sports medicine professional.
+
+# SECTION: BMI Ranges
+BMI (Body Mass Index) = weight (kg) / height (m)²
+BMI categories (WHO standard):
+- Below 18.5: Underweight
+- 18.5–24.9: Healthy weight
+- 25.0–29.9: Overweight
+- 30.0–34.9: Obesity class I
+- 35.0–39.9: Obesity class II
+- 40.0 and above: Obesity class III (severe)
+BMI has limitations: it does not account for muscle mass, bone density, age, or fat distribution.
+Athletes with high muscle mass often have a BMI in the overweight range despite being healthy.
+A better indicator of health risk is waist circumference: above 88 cm (women) or 102 cm (men) raises risk.
+Use BMI alongside other metrics (body fat %, blood markers, fitness tests) for a complete picture.
+
+# SECTION: Strength Training Fundamentals
+Compound movements (squat, deadlift, bench press, overhead press, row) build the most muscle and strength.
+Isolation exercises (curls, extensions) complement compound lifts for targeted development.
+Rep ranges and their general effects:
+- 1–5 reps at 85–100% 1RM: maximal strength
+- 6–12 reps at 67–85% 1RM: hypertrophy (muscle growth)
+- 13–20+ reps at below 67% 1RM: muscular endurance
+Volume (sets × reps × load) is the key driver of hypertrophy — aim for 10–20 working sets per muscle group per week.
+Rest periods: 2–5 minutes for strength; 60–90 seconds for hypertrophy; 30–60 seconds for endurance.
+Consistency over months and years matters far more than any individual session.
+
+# SECTION: Cardio and Endurance Training
+Cardiovascular exercise improves heart health, increases calorie burn, and boosts mood via endorphins.
+Zone 2 cardio (60–70% max heart rate): sustainable, conversational pace; builds aerobic base and fat oxidation.
+HIIT (High-Intensity Interval Training): alternates intense bursts with recovery; efficient for time-pressed schedules.
+150 minutes of moderate-intensity or 75 minutes of vigorous cardio per week is the WHO recommendation for health.
+Cardio should complement, not replace, strength training — both together produce the best health outcomes.
+For fat loss, total calorie burn matters more than cardio type; do what you will sustain long term.
+Overusing high-intensity cardio while in a calorie deficit risks muscle loss — keep some sessions easy.
