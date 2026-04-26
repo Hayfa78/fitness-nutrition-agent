@@ -30,7 +30,7 @@ import {
 } from "recharts";
 import "./styles.css";
 
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = import.meta.env.VITE_API_URL || "https://fitness-nutrition-agent.onrender.com";
 
 const KEYS = {
   profile: "fitai_profile",

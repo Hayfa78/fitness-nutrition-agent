@@ -5,9 +5,18 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/chat": "http://localhost:8504",
-      "/tool": "http://localhost:8504",
-      "/api": "http://localhost:8504"
+      "/chat": {
+        target: "https://fitness-nutrition-agent.onrender.com",
+        changeOrigin: true
+      },
+      "/tool": {
+        target: "https://fitness-nutrition-agent.onrender.com",
+        changeOrigin: true
+      },
+      "/api": {
+        target: "https://fitness-nutrition-agent.onrender.com",
+        changeOrigin: true
+      }
     }
   }
 });
