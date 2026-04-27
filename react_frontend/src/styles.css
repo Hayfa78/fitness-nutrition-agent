@@ -1147,3 +1147,30 @@ main {
 [data-theme="dark"] .progress-bar-bg {
   background-color: #444444 !important;
 }
+
+/* ── Dark mode broad card/element sweep ──────────────────────────────────── */
+
+[data-theme="dark"] .card,
+[data-theme="dark"] [class*="card"],
+[data-theme="dark"] [class*="plan"],
+[data-theme="dark"] [class*="item"],
+[data-theme="dark"] [class*="section"],
+[data-theme="dark"] [class*="panel"],
+[data-theme="dark"] [class*="block"],
+[data-theme="dark"] [class*="box"] {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] [class*="card"] p,
+[data-theme="dark"] [class*="card"] span,
+[data-theme="dark"] [class*="card"] h1,
+[data-theme="dark"] [class*="card"] h2,
+[data-theme="dark"] [class*="card"] h3,
+[data-theme="dark"] [class*="card"] h4,
+[data-theme="dark"] [class*="plan"] p,
+[data-theme="dark"] [class*="plan"] span,
+[data-theme="dark"] [class*="item"] p,
+[data-theme="dark"] [class*="item"] span {
+  color: #ffffff !important;
+}
