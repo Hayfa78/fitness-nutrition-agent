@@ -1,5 +1,6 @@
 import json
 import os
+import random
 import re
 from datetime import datetime, timedelta
 from typing import Any
@@ -403,6 +404,61 @@ def suggest_progressive_overload(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+# ── Meal option pools for variety on each regeneration ───────────────────────
+
+_BREAKFAST_OPTIONS = [
+    "Overnight oats with banana and almond butter",
+    "Scrambled eggs with spinach and whole-wheat toast",
+    "Greek yogurt parfait with granola and mixed berries",
+    "Smoothie bowl with protein powder, frozen berries, and chia seeds",
+    "Avocado toast with poached eggs and cherry tomatoes",
+    "Whole-grain pancakes with fresh fruit and a drizzle of honey",
+    "Protein omelette with mushrooms, onions, and feta",
+    "Chia pudding with coconut milk, mango, and almonds",
+    "Cottage cheese bowl with pineapple and sunflower seeds",
+    "High-protein French toast with cinnamon and strawberries",
+]
+
+_LUNCH_OPTIONS = [
+    "Grilled chicken salad with quinoa, cucumber, and lemon-herb dressing",
+    "Lentil soup with whole-grain bread and a side salad",
+    "Tuna wrap with lettuce, tomato, and hummus",
+    "Brown rice bowl with roasted vegetables and chickpeas",
+    "Turkey and avocado sandwich on whole-grain bread",
+    "Grilled salmon with sweet potato and steamed broccoli",
+    "Falafel wrap with tabbouleh and tahini sauce",
+    "Chicken and vegetable stir-fry with brown rice",
+    "Black bean burrito bowl with salsa, lime rice, and Greek yogurt",
+    "Egg and vegetable frittata with a green side salad",
+]
+
+_DINNER_OPTIONS = [
+    "Baked salmon with roasted asparagus and quinoa",
+    "Lean beef stir-fry with mixed vegetables and brown rice",
+    "Grilled chicken breast with sweet potato mash and green beans",
+    "Lentil and vegetable curry with basmati rice",
+    "Baked cod with roasted root vegetables and couscous",
+    "Turkey meatballs with zucchini noodles and marinara sauce",
+    "Stuffed bell peppers with ground turkey and black beans",
+    "Sheet-pan chicken thighs with roasted cauliflower and chickpeas",
+    "Shrimp and vegetable skewers with wild rice",
+    "Tofu and broccoli stir-fry with ginger-soy sauce and brown rice",
+]
+
+_SNACK_OPTIONS = [
+    "Greek yogurt with honey and walnuts (approx. 200 kcal)",
+    "Apple slices with almond butter (approx. 180 kcal)",
+    "Protein shake blended with a banana (approx. 220 kcal)",
+    "Hummus with carrot sticks and whole-grain crackers (approx. 200 kcal)",
+    "Cottage cheese with pineapple chunks (approx. 170 kcal)",
+    "Rice cakes with peanut butter and banana slices (approx. 210 kcal)",
+    "A handful of mixed nuts and dried fruit (approx. 180 kcal)",
+    "Hard-boiled eggs with cherry tomatoes (approx. 160 kcal)",
+    "Celery sticks with peanut butter and raisins (approx. 190 kcal)",
+    "Edamame with sea salt (approx. 150 kcal)",
+]
+
+
 # ── Type 2: context collectors (no LLM calls, return instruction_for_agent) ──
 
 def generate_meal_plan(data: dict[str, Any]) -> dict[str, Any]:
@@ -424,18 +480,46 @@ def generate_meal_plan(data: dict[str, Any]) -> dict[str, Any]:
         if item.strip()
     ) or "none"
 
+    # Random meal starters — different pool pick every call guarantees variety
+    breakfast_hint = random.choice(_BREAKFAST_OPTIONS)
+    lunch_hint     = random.choice(_LUNCH_OPTIONS)
+    dinner_hint    = random.choice(_DINNER_OPTIONS)
+    snack_hint     = random.choice(_SNACK_OPTIONS)
+    variation_seed = random.randint(1000, 9999)
+
+    try:
+        snack_calories = round(int(calorie_target) * 0.10)
+    except (ValueError, TypeError):
+        snack_calories = 200
+
     return {
         "ok": True,
         "instruction_for_agent": (
-            f"Create a personalized {meals_per_day}-meal daily plan targeting {calorie_target} kcal. "
+            f"[Variation #{variation_seed}] "
+            f"Create a personalized daily meal plan targeting {calorie_target} kcal. "
             f"Macros: {macros.get('protein_g','?')}g protein, {macros.get('carbs_g','?')}g carbs, "
             f"{macros.get('fat_g','?')}g fat. Goal: {goal}. "
-            f"Dietary restrictions: {dietary}. Preferred cuisine: {cuisine}. "
+            f"Dietary preference: {dietary}. Preferred cuisine: {cuisine}. "
             f"Favorite meals to prioritize: {favorites}. "
             f"ABSOLUTE EXCLUSIONS — NEVER include these in any meal, ingredient, or alternative: {banned}. "
             "Do not mention banned items even as substitutes. "
-            "Return JSON: {\"summary\": \"...\", \"meals\": [{\"name\": \"...\", \"food\": \"...\", "
-            "\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}], \"notes\": \"...\"}"
+            "Use these as inspiration for each slot (adapt ingredients to respect all dietary rules and exclusions above): "
+            f"Breakfast inspiration: {breakfast_hint}. "
+            f"Lunch inspiration: {lunch_hint}. "
+            f"Dinner inspiration: {dinner_hint}. "
+            f"Snack inspiration: {snack_hint}. "
+            "IMPORTANT: The meals array MUST contain exactly 4 items in this order: Breakfast, Lunch, Dinner, Snack. "
+            f"The snack must use approximately {snack_calories} kcal "
+            "(the remaining calories after breakfast, lunch, and dinner add up to the daily target). "
+            "Never return an empty snack, a placeholder, or a snack named 'Plan snack'. "
+            "Generate a specific, real snack food that fits the goal and dietary preference. "
+            "Return ONLY valid JSON with no markdown: "
+            "{\"summary\": \"...\", \"meals\": [{\"name\": \"Breakfast\", \"food\": \"...\", "
+            "\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}, "
+            "{\"name\": \"Lunch\", \"food\": \"...\", \"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}, "
+            "{\"name\": \"Dinner\", \"food\": \"...\", \"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}, "
+            "{\"name\": \"Snack\", \"food\": \"...\", \"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}], "
+            "\"notes\": \"...\"}"
         ),
         "context": {
             "calorie_target": calorie_target,
