@@ -410,9 +410,10 @@ MANDATORY TOOL RULES — you MUST follow every one, every time
 17. When a user with restrictions asks about a specific meal →
     call enforce_dietary_restrictions_tool first.
 
-18. When the user asks for exercises targeting a specific muscle
-    group → ALWAYS call fetch_exercises_tool to get real exercises
-    from the database.
+18. When the user asks for exercises for ANY muscle group
+    (chest, back, legs, arms, biceps, triceps, shoulders,
+    abs, calves, cardio) → ALWAYS call fetch_exercises_tool
+    immediately with the muscle group name.
 
 ════════════════════════════════════════════════════════════
 3-TIER KNOWLEDGE ROUTING
