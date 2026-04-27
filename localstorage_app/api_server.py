@@ -217,8 +217,13 @@ def clean_markdown(text: str) -> str:
     text = re.sub(r"^#{1,6}\s+", "", text, flags=re.MULTILINE)
     # Remove bold/italic markers (** __ * _)
     text = re.sub(r"\*{1,2}|_{1,2}", "", text)
-    # Replace markdown bullet points (* or -) at line start with a plain dash
-    text = re.sub(r"^\s*[*-]\s+", "- ", text, flags=re.MULTILINE)
+    # Strip all leading indentation so everything is left-aligned (flatten nesting)
+    text = re.sub(r"^[ \t]+", "", text, flags=re.MULTILINE)
+    # Normalise all bullet styles (*, -, •, +) and numbered lists to "- "
+    text = re.sub(r"^[-*•+]\s+", "- ", text, flags=re.MULTILINE)
+    text = re.sub(r"^\d+\.\s+", "- ", text, flags=re.MULTILINE)
+    # Ensure a blank line after section headers (non-bullet lines that end with ":")
+    text = re.sub(r"(^(?!- )[^\n]+:)\n(?!\n)", r"\1\n\n", text, flags=re.MULTILINE)
     # Collapse 3+ consecutive blank lines down to 2
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()

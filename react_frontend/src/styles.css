@@ -1103,3 +1103,47 @@ main {
   color: #ffffff !important;
   background-color: #1a1a1a !important;
 }
+
+/* ── Dark mode daily plan card text visibility ───────────────────────────── */
+
+.app.dark .daily-plan,
+.app.dark .daily-plan-card,
+.app.dark .plan-item,
+.app.dark .plan-card {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+}
+
+.app.dark .plan-item .label,
+.app.dark .plan-item .value,
+.app.dark .plan-card p,
+.app.dark .plan-card span,
+.app.dark .plan-card h3,
+.app.dark .plan-card h4 {
+  color: #ffffff !important;
+}
+
+.app.dark .progress-bar-bg {
+  background-color: #444444 !important;
+}
+
+[data-theme="dark"] .daily-plan,
+[data-theme="dark"] .daily-plan-card,
+[data-theme="dark"] .plan-item,
+[data-theme="dark"] .plan-card {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .plan-item .label,
+[data-theme="dark"] .plan-item .value,
+[data-theme="dark"] .plan-card p,
+[data-theme="dark"] .plan-card span,
+[data-theme="dark"] .plan-card h3,
+[data-theme="dark"] .plan-card h4 {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .progress-bar-bg {
+  background-color: #444444 !important;
+}
