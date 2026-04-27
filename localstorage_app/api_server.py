@@ -411,9 +411,10 @@ def api_tool(req: ToolRequest):
 
 
 def run_server():
-    port = int(os.getenv("PORT", os.getenv("FITAI_PORT", "8504")))
-    print(f"FitAI API running at http://127.0.0.1:{port}")
-    print("Your API key stays in .env and is not sent to the browser.")
+    import uvicorn
+    import os
+    port = int(os.environ.get("PORT", 8504))
+    print(f"FitAI API starting on port {port}")
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 
