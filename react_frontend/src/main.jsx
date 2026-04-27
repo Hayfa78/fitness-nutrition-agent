@@ -217,17 +217,28 @@ function App() {
   function formatToolResult(tool, result) {
     if (!result?.data) return result?.reply || "";
     if (tool === "workout") {
+      const days = result.data.days || [];
       const exercises = result.data.exercises || [];
-      return [
+      const lines = [
         result.data.summary || "AI workout plan generated.",
         `Days per week: ${result.data.days_per_week || "custom"}`,
         `Difficulty: ${result.data.difficulty || profile.fitnessLevel}`,
-        result.data.progression ? `Progression: ${result.data.progression}` : "",
-        exercises.length ? "\nExercises:" : "",
-        ...exercises.map((exercise) => (
-          `- ${exercise.name}: ${exercise.sets || 3} sets x ${exercise.reps || "10-12"}, rest ${exercise.rest || "60 sec"}`
-        ))
-      ].filter(Boolean).join("\n");
+        result.data.progression ? `Progression: ${result.data.progression}` : ""
+      ];
+      if (days.length) {
+        days.forEach((day) => {
+          lines.push(`\n${day.name || "Day"}:`);
+          (day.exercises || []).forEach((ex) => lines.push(
+            `- ${ex.name}: ${ex.sets || 3} sets x ${ex.reps || "10-12"}, rest ${ex.rest || "60 sec"}`
+          ));
+        });
+      } else if (exercises.length) {
+        lines.push("\nExercises:");
+        exercises.forEach((ex) => lines.push(
+          `- ${ex.name}: ${ex.sets || 3} sets x ${ex.reps || "10-12"}, rest ${ex.rest || "60 sec"}`
+        ));
+      }
+      return lines.filter(Boolean).join("\n");
     }
     if (tool === "meal_plan") {
       const meals = result.data.meals || [];
@@ -307,9 +318,15 @@ function App() {
   async function generateWorkout() {
     const result = await runAITool("workout");
     if (!result) return;
-    const aiExercises = result.data?.exercises?.length
-      ? result.data.exercises
-      : buildWorkout(profile).exercises.map((name) => ({ name, sets: 3, reps: "10-12", rest: "60 sec" }));
+    // Support new per-day structure; fall back to flat exercises or built-in list
+    let aiExercises;
+    if (result.data?.days?.length) {
+      aiExercises = result.data.days.flatMap((day) => day.exercises || []);
+    } else if (result.data?.exercises?.length) {
+      aiExercises = result.data.exercises;
+    } else {
+      aiExercises = buildWorkout(profile).exercises.map((name) => ({ name, sets: 3, reps: "10-12", rest: "60 sec" }));
+    }
     const newChecklist = aiExercises.map((exercise, index) => ({
       id: `${Date.now()}-${index}`,
       name: exercise.name,
@@ -568,16 +585,20 @@ function TodayBoard({ metrics, profile, meals, workouts, proteinToday }) {
 }
 
 function WorkoutBoard({ checklist }) {
-  const planned = checklist.filter((item) => !item.completedSets && !item.skipped).slice(0, 3);
-  const inProgress = checklist.filter((item) => item.completedSets > 0 && !item.skipped).slice(0, 3);
-  const completed = checklist.filter((item) => item.completedSets > 0 && !item.skipped).length;
+  function parseTotalSets(item) {
+    const match = String(item.target || "").match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : 3;
+  }
+  const planned     = checklist.filter((item) => !item.skipped && item.completedSets === 0);
+  const inProgress  = checklist.filter((item) => !item.skipped && item.completedSets > 0 && item.completedSets < parseTotalSets(item));
+  const completedItems = checklist.filter((item) => !item.skipped && item.completedSets >= parseTotalSets(item));
 
   return <article className="board-card board-workout">
     <div className="board-heading"><div><span>Workout</span><h2>Training Flow</h2></div><Dumbbell size={22} /></div>
     <div className="kanban">
       <KanbanColumn title="Planned" items={planned.map((item) => item.name)} empty="Generate a plan" />
       <KanbanColumn title="In Progress" items={inProgress.map((item) => item.name)} empty="Start a set" />
-      <KanbanColumn title="Completed" items={completed ? [`${completed} exercise${completed === 1 ? "" : "s"}`] : []} empty="None yet" />
+      <KanbanColumn title="Completed" items={completedItems.map((item) => item.name)} empty="None yet" />
     </div>
   </article>;
 }
@@ -636,7 +657,7 @@ function ProgressBar({ value, tone }) {
 function KanbanColumn({ title, items, empty }) {
   return <div className="kanban-column">
     <span>{title}</span>
-    <div className="kanban-stack">
+    <div className="kanban-stack" style={{ maxHeight: "400px", overflowY: "auto" }}>
       {items.length ? items.map((item) => <strong className="kanban-card" key={item}>{item}</strong>) : <em>{empty}</em>}
     </div>
   </div>;
@@ -750,13 +771,34 @@ function SavedWorkoutPlan({ plan, onRegenerate, onClear }) {
     <div className="section-heading"><h2>Saved AI Workout Plan</h2><span>{plan?.days_per_week ? `${plan.days_per_week} days/week` : "API generated"}</span></div>
     {!plan && <p className="empty-state">Generate an AI workout plan to save training days here.</p>}
     {plan?.summary && <p className="plan-summary">{plan.summary}</p>}
-    {plan?.exercises?.length > 0 && <div className="workout-tabs">
-      {plan.exercises.map((exercise, index) => <article className="workout-tab" key={`${exercise.name}-${index}`}>
-        <strong>Day {index + 1}</strong>
-        <span>{exercise.name}</span>
-        <small>{exercise.sets || 3} sets x {exercise.reps || "10-12"} | rest {exercise.rest || "60 sec"}</small>
-      </article>)}
-    </div>}
+    {plan?.days?.length > 0 && (
+      <div className="workout-tabs">
+        {plan.days.map((day, dayIndex) => (
+          <article className="workout-tab" key={dayIndex}>
+            <strong>{day.name || `Day ${dayIndex + 1}`}</strong>
+            <div style={{ maxHeight: "400px", overflowY: "auto", marginTop: "6px" }}>
+              {(day.exercises || []).map((ex, i) => (
+                <div key={i} style={{ marginBottom: "4px" }}>
+                  <span>{ex.name}</span>
+                  <small style={{ display: "block" }}>{ex.sets || 3} sets × {ex.reps || "10-12"} | rest {ex.rest || "60 sec"}</small>
+                </div>
+              ))}
+            </div>
+          </article>
+        ))}
+      </div>
+    )}
+    {!plan?.days?.length && plan?.exercises?.length > 0 && (
+      <div className="workout-tabs" style={{ maxHeight: "400px", overflowY: "auto" }}>
+        {plan.exercises.map((exercise, index) => (
+          <article className="workout-tab" key={`${exercise.name}-${index}`}>
+            <strong>Day {index + 1}</strong>
+            <span>{exercise.name}</span>
+            <small>{exercise.sets || 3} sets x {exercise.reps || "10-12"} | rest {exercise.rest || "60 sec"}</small>
+          </article>
+        ))}
+      </div>
+    )}
     {plan?.progression && <p className="plan-summary">Progression: {plan.progression}</p>}
     <div className="plan-actions">
       <button className="primary" onClick={onRegenerate}>Regenerate</button>

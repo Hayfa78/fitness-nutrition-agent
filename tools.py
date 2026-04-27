@@ -546,14 +546,28 @@ def generate_workout_plan(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "ok": True,
         "instruction_for_agent": (
-            f"Create a personalized {days_per_week}-day/week workout plan for a {fitness_level} "
-            f"training at {training_place} with {equipment}. Goal: {goal}. "
-            "Include warm-up, main exercises with sets/reps/rest, and cool-down. "
-            "IMPORTANT: every object in the exercises array MUST have a 'name' key with the exercise name as a string. "
-            "Return ONLY valid JSON in exactly this shape, no markdown, no extra text:\n"
-            "{\"summary\": \"short summary\", \"days_per_week\": 3, \"difficulty\": \"beginner\", "
-            "\"progression\": \"progression tip\", "
-            "\"exercises\": [{\"name\": \"Push-ups\", \"sets\": 3, \"reps\": \"10-12\", \"rest\": \"60 sec\"}]}"
+            f"Generate a full muscle-group split workout plan for a {fitness_level} "
+            f"training at {training_place} with {equipment}. Goal: {goal}. Days per week: {days_per_week}. "
+            "Each training day MUST include 4-6 exercises. "
+            "Cover push, pull, legs, and arms as separate days. Never return only 1 exercise per day. "
+            "Use this muscle group split: "
+            "Day 1 — Push (chest, shoulders, triceps), "
+            "Day 2 — Pull (back, biceps), "
+            "Day 3 — Legs (quads, hamstrings, glutes, calves). "
+            "If more days: Day 4 — Upper Body, Day 5 — Arms, Day 6 — Full Body/Core. "
+            "IMPORTANT: every exercise object MUST have a 'name' key with the exercise name as a string. "
+            "Return ONLY valid JSON with no markdown:\n"
+            "{\"summary\": \"...\", \"days_per_week\": 3, \"difficulty\": \"beginner\", "
+            "\"progression\": \"...\", "
+            "\"days\": ["
+            "{\"name\": \"Day 1 - Push (Chest, Shoulders, Triceps)\", "
+            "\"exercises\": ["
+            "{\"name\": \"Bench Press\", \"sets\": 3, \"reps\": \"10-12\", \"rest\": \"60 sec\"}, "
+            "{\"name\": \"Overhead Press\", \"sets\": 3, \"reps\": \"10-12\", \"rest\": \"60 sec\"}, "
+            "{\"name\": \"Incline Dumbbell Press\", \"sets\": 3, \"reps\": \"10-12\", \"rest\": \"60 sec\"}, "
+            "{\"name\": \"Lateral Raises\", \"sets\": 3, \"reps\": \"12-15\", \"rest\": \"45 sec\"}, "
+            "{\"name\": \"Tricep Dips\", \"sets\": 3, \"reps\": \"10-12\", \"rest\": \"60 sec\"}"
+            "]}]}"
         ),
         "context": {
             "goal": goal,
@@ -725,6 +739,47 @@ def generate_motivation(data: dict[str, Any]) -> dict[str, Any]:
             "mood": mood,
         },
     }
+
+
+def fetch_exercises_by_muscle(data: dict) -> dict:
+    """Fetch real exercises from wger.de exercise database API.
+    Groups exercises by muscle category."""
+    import requests
+
+    muscle_categories = {
+        "chest": 11,
+        "back": 12,
+        "shoulders": 13,
+        "upper arms": 8,
+        "lower arms": 9,
+        "abs": 10,
+        "legs": 14,
+        "calves": 15,
+        "cardio": 1,
+    }
+
+    target = data.get("muscle_group", "").lower()
+    category_id = muscle_categories.get(target, 10)
+
+    try:
+        url = f"https://wger.de/api/v2/exercise/?format=json&language=2&category={category_id}&limit=10"
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        exercises = response.json().get("results", [])
+        names = [ex.get("name", "") for ex in exercises if ex.get("name")]
+        return {
+            "ok": True,
+            "muscle_group": target,
+            "exercises": names,
+            "count": len(names),
+            "source": "wger.de Exercise Database",
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "message": f"Could not fetch exercises: {str(e)}",
+            "muscle_group": target,
+        }
 
 
 def enforce_dietary_restrictions(data: dict[str, Any]) -> dict[str, Any]:
