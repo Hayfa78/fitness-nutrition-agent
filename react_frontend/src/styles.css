@@ -1174,3 +1174,20 @@ main {
 [data-theme="dark"] [class*="item"] span {
   color: #ffffff !important;
 }
+
+/* ── Daily plan cards: dark charcoal text (readable on light card bg) ─────── */
+
+[data-theme="dark"] .daily-plan [class*="card"],
+[data-theme="dark"] .daily-plan [class*="item"],
+[data-theme="dark"] .daily-plan [class*="plan-item"] {
+  color: #2d2d2d !important;
+}
+
+[data-theme="dark"] .daily-plan [class*="card"] p,
+[data-theme="dark"] .daily-plan [class*="card"] span,
+[data-theme="dark"] .daily-plan [class*="card"] h3,
+[data-theme="dark"] .daily-plan [class*="card"] h4,
+[data-theme="dark"] .daily-plan [class*="item"] p,
+[data-theme="dark"] .daily-plan [class*="item"] span {
+  color: #2d2d2d !important;
+}
