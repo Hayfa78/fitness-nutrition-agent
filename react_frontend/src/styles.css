@@ -1049,3 +1049,57 @@ main {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Dark mode chat visibility ───────────────────────────────────────────────
+   The app uses .app.dark (not data-theme), so both selector forms are
+   included. !important overrides any variable-based or inherited value.     */
+
+.app.dark .chat-window {
+  background: rgba(18, 28, 20, 0.72) !important;
+}
+
+.app.dark .bubble.bot {
+  background-color: #2d2d2d !important;
+  color: #f0f0f0 !important;
+  border-color: #3a3a3a !important;
+}
+
+.app.dark .bubble.bot.typing {
+  color: #aaaaaa !important;
+}
+
+.app.dark .bubble.user {
+  background-color: #4a7a3d !important;
+  color: #ffffff !important;
+}
+
+.app.dark .chat-input input,
+.app.dark .chat-input textarea {
+  background-color: #2d2d2d !important;
+  color: #ffffff !important;
+  border-color: #3a3a3a !important;
+}
+
+.app.dark .chat-input input::placeholder,
+.app.dark .chat-input textarea::placeholder {
+  color: #aaaaaa !important;
+}
+
+/* Requested data-theme rules (forward-compatible) */
+[data-theme="dark"] .message-bubble,
+[data-theme="dark"] .bot-message,
+[data-theme="dark"] .assistant-message {
+  color: #ffffff !important;
+  background-color: #2d2d2d !important;
+}
+
+[data-theme="dark"] .user-message {
+  color: #ffffff !important;
+}
+
+[data-theme="dark"] .chat-input input,
+[data-theme="dark"] .chat-input textarea,
+[data-theme="dark"] input[type="text"] {
+  color: #ffffff !important;
+  background-color: #1a1a1a !important;
+}

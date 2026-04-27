@@ -100,12 +100,29 @@ class ToolRequest(BaseModel):
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 
+_REACT_TO_MEMORY = {
+    "activity": "activity_level",
+    "fitnessLevel": "fitness_level",
+    "mealsPerDay": "meals_per_day",
+    "restrictions": "dietary_preference",
+}
+
+
 def _sync_profile(profile: dict[str, Any] | None) -> None:
+    """Merge request profile into memory, mapping React field names to memory field names."""
     if not profile:
         return
+    from memory import get_profile
+    current = get_profile().copy()
     for field, value in profile.items():
-        if value is not None:
-            _update_profile(field, value if isinstance(value, str) else str(value))
+        if value is None or value == "":
+            continue
+        memory_field = _REACT_TO_MEMORY.get(field, field)
+        str_value = value if isinstance(value, str) else str(value)
+        if memory_field in current:
+            _update_profile(memory_field, str_value)
+        elif field in current:
+            _update_profile(field, str_value)
 
 
 def _llm() -> ChatGoogleGenerativeAI:

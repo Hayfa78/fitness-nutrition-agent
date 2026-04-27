@@ -468,10 +468,31 @@ class FitnessChat:
 
     def send_message(self, message: str, context: dict[str, Any] | None = None) -> str:
         full_message = message
+        profile_ctx: dict = {}
         if context:
+            profile_ctx = context.get("profile") or {}
             full_message += "\n\nFrontend context:\n" + json.dumps(context, indent=2)[:3000]
 
-        system_msg = SystemMessage(content=SYSTEM_PROMPT.format(profile=profile_summary()))
+        allergies    = profile_ctx.get("restrictions") or profile_ctx.get("allergies") or "none"
+        disliked     = profile_ctx.get("dislikedFoods") or profile_ctx.get("disliked_foods") or "none"
+        favorites    = profile_ctx.get("favoriteMeals") or profile_ctx.get("favorite_meals") or "none"
+        cuisine      = profile_ctx.get("cuisine") or profile_ctx.get("preferred_cuisine") or "any"
+        place        = profile_ctx.get("place") or profile_ctx.get("training_place") or "any"
+        meals_per_day = profile_ctx.get("mealsPerDay") or profile_ctx.get("meals_per_day") or "3"
+
+        profile_constraints = f"""STRICT RULES based on profile:
+- Allergies/Restrictions: {allergies} — NEVER include these in any meal, plan, or grocery list under any circumstance. Do not suggest them even as alternatives.
+- Disliked Foods: {disliked} — avoid these in all recommendations.
+- Favorite Meals: {favorites} — prioritize these when relevant.
+- Preferred Cuisine: {cuisine} — use this style when generating food recommendations.
+- Training Place: {place} — tailor all workout plans to this location.
+- Meals Per Day: {meals_per_day} — plan meal schedules accordingly.
+
+These profile fields are ABSOLUTE constraints. Never contradict them or ask the user to clarify something already in their profile.
+
+{profile_summary()}"""
+
+        system_msg = SystemMessage(content=SYSTEM_PROMPT.format(profile=profile_constraints))
         result = self.agent.invoke({
             "messages": [system_msg] + self.chat_history + [HumanMessage(content=full_message)]
         })

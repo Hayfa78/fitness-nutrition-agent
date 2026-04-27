@@ -412,17 +412,28 @@ def generate_meal_plan(data: dict[str, Any]) -> dict[str, Any]:
     macros = cal_data.get("macros", {})
     meals_per_day = int(_number(profile.get("meals_per_day"), 3) or 3)
     goal = _text(profile.get("goal"), "maintain")
-    dietary = _text(profile.get("dietary_preference") or data.get("dietary_preference"), "none")
-    allergies = _text(profile.get("allergies") or data.get("allergies"), "none")
+    dietary = _text(profile.get("dietary_preference") or data.get("dietary_preference") or data.get("restrictions"), "none")
+    allergies = _text(profile.get("allergies") or data.get("allergies") or data.get("restrictions"), "none")
+    disliked = _text(data.get("dislikedFoods") or data.get("disliked_foods") or profile.get("disliked_foods"), "none")
+    favorites = _text(data.get("favoriteMeals") or data.get("favorite_meals") or profile.get("favorite_meals"), "none")
     cuisine = _text(data.get("preferred_cuisine") or data.get("cuisine"), "any")
+
+    banned = ", ".join(
+        item.strip() for item in
+        set((allergies + "," + disliked).replace("none", "").split(","))
+        if item.strip()
+    ) or "none"
+
     return {
         "ok": True,
         "instruction_for_agent": (
             f"Create a personalized {meals_per_day}-meal daily plan targeting {calorie_target} kcal. "
             f"Macros: {macros.get('protein_g','?')}g protein, {macros.get('carbs_g','?')}g carbs, "
             f"{macros.get('fat_g','?')}g fat. Goal: {goal}. "
-            f"Dietary restrictions: {dietary}. Allergies to avoid: {allergies}. "
-            f"Preferred cuisine: {cuisine}. "
+            f"Dietary restrictions: {dietary}. Preferred cuisine: {cuisine}. "
+            f"Favorite meals to prioritize: {favorites}. "
+            f"ABSOLUTE EXCLUSIONS — NEVER include these in any meal, ingredient, or alternative: {banned}. "
+            "Do not mention banned items even as substitutes. "
             "Return JSON: {\"summary\": \"...\", \"meals\": [{\"name\": \"...\", \"food\": \"...\", "
             "\"calories\": 0, \"protein\": 0, \"carbs\": 0, \"fat\": 0}], \"notes\": \"...\"}"
         ),
@@ -433,7 +444,10 @@ def generate_meal_plan(data: dict[str, Any]) -> dict[str, Any]:
             "goal": goal,
             "dietary_preference": dietary,
             "allergies": allergies,
+            "disliked_foods": disliked,
+            "favorite_meals": favorites,
             "preferred_cuisine": cuisine,
+            "banned_ingredients": banned,
         },
     }
 
@@ -489,17 +503,28 @@ def estimate_meal(data: dict[str, Any]) -> dict[str, Any]:
 def generate_grocery_list(data: dict[str, Any]) -> dict[str, Any]:
     profile = _profile_from_input(data)
     goal = _text(profile.get("goal"), "maintain")
-    dietary = _text(profile.get("dietary_preference"), "none")
-    allergies = _text(profile.get("allergies"), "none")
+    dietary = _text(profile.get("dietary_preference") or data.get("restrictions"), "none")
+    allergies = _text(profile.get("allergies") or data.get("restrictions"), "none")
+    disliked = _text(data.get("dislikedFoods") or data.get("disliked_foods") or profile.get("disliked_foods"), "none")
+    favorites = _text(data.get("favoriteMeals") or data.get("favorite_meals") or profile.get("favorite_meals"), "none")
     budget = _text(data.get("budget"), "moderate")
-    cuisine = _text(data.get("preferred_cuisine"), "any")
+    cuisine = _text(data.get("preferred_cuisine") or data.get("cuisine"), "any")
     days = int(_number(data.get("days"), 7) or 7)
+
+    banned = ", ".join(
+        item.strip() for item in
+        set((allergies + "," + disliked).replace("none", "").split(","))
+        if item.strip()
+    ) or "none"
+
     return {
         "ok": True,
         "instruction_for_agent": (
             f"Generate a {days}-day grocery list for goal: {goal}. "
-            f"Dietary preference: {dietary}. Exclude allergens: {allergies}. "
-            f"Budget: {budget}. Preferred cuisine: {cuisine}. "
+            f"Dietary preference: {dietary}. Budget: {budget}. Preferred cuisine: {cuisine}. "
+            f"Prioritize ingredients for these favorite meals: {favorites}. "
+            f"ABSOLUTE EXCLUSIONS — NEVER include these ingredients or any product containing them: {banned}. "
+            "Do not list banned items under any category, even as alternatives. "
             "Group items by category: Proteins, Vegetables, Grains, Dairy/Alternatives, Extras. "
             "Keep it practical and minimise waste."
         ),
@@ -507,8 +532,11 @@ def generate_grocery_list(data: dict[str, Any]) -> dict[str, Any]:
             "goal": goal,
             "dietary_preference": dietary,
             "allergies": allergies,
+            "disliked_foods": disliked,
+            "favorite_meals": favorites,
             "budget": budget,
             "days": days,
+            "banned_ingredients": banned,
         },
     }
 
