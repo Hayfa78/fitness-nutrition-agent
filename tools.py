@@ -742,8 +742,6 @@ def generate_motivation(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def fetch_exercises_by_muscle(data: dict) -> dict:
-    """Fetch real exercises from wger.de exercise database API.
-    Groups exercises by muscle category."""
     import requests
 
     muscle_categories = {
@@ -758,26 +756,41 @@ def fetch_exercises_by_muscle(data: dict) -> dict:
         "cardio": 1,
     }
 
-    target = data.get("muscle_group", "").lower()
-    category_id = muscle_categories.get(target, 10)
+    target = data.get("muscle_group", "chest").lower()
+    category_id = muscle_categories.get(target, 11)
 
     try:
-        url = f"https://wger.de/api/v2/exercise/?format=json&language=2&category={category_id}&limit=10"
-        response = requests.get(url, timeout=10)
+        url = f"https://wger.de/api/v2/exerciseinfo/?format=json&language=2&category={category_id}&limit=8"
+        response = requests.get(url, timeout=15)
         response.raise_for_status()
-        exercises = response.json().get("results", [])
-        names = [ex.get("name", "") for ex in exercises if ex.get("name")]
+        results = response.json().get("results", [])
+
+        exercises = []
+        for ex in results:
+            translations = ex.get("translations", [])
+            for t in translations:
+                if t.get("language") == 2 and t.get("name"):
+                    exercises.append(t.get("name"))
+                    break
+
+        if not exercises:
+            return {
+                "ok": False,
+                "message": "No exercises found for this muscle group.",
+                "muscle_group": target,
+            }
+
         return {
             "ok": True,
             "muscle_group": target,
-            "exercises": names,
-            "count": len(names),
+            "exercises": exercises,
+            "count": len(exercises),
             "source": "wger.de Exercise Database",
         }
     except Exception as e:
         return {
             "ok": False,
-            "message": f"Could not fetch exercises: {str(e)}",
+            "message": f"API error: {str(e)}",
             "muscle_group": target,
         }
 
