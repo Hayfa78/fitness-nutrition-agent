@@ -21,28 +21,26 @@ def load_profile():
             return {**default_profile, **saved_profile}
     return default_profile.copy()
 
-user_profile = load_profile()
-
-def save_profile():
-    with open(PROFILE_FILE, "w") as file:
-        json.dump(user_profile, file, indent=4)
+def get_profile():
+    """Always read fresh from disk — never returns stale cached data."""
+    return load_profile()
 
 def update_profile(field, value):
-    if field in user_profile:
-        user_profile[field] = value
-        save_profile()
-
-def get_profile():
-    return user_profile
+    current = load_profile()
+    if field in current:
+        current[field] = value
+        with open(PROFILE_FILE, "w") as file:
+            json.dump(current, file, indent=4)
 
 def profile_summary():
+    p = load_profile()
     return (
-        f"Age: {user_profile.get('age')}, "
-        f"Weight: {user_profile.get('weight')}, "
-        f"Height: {user_profile.get('height')}, "
-        f"Goal: {user_profile.get('goal')}, "
-        f"Fitness Level: {user_profile.get('fitness_level')}, "
-        f"Activity Level: {user_profile.get('activity_level')}, "
-        f"Dietary Preference: {user_profile.get('dietary_preference')}, "
-        f"Meals Per Day: {user_profile.get('meals_per_day')}"
+        f"Age: {p.get('age')}, "
+        f"Weight: {p.get('weight')}, "
+        f"Height: {p.get('height')}, "
+        f"Goal: {p.get('goal')}, "
+        f"Fitness Level: {p.get('fitness_level')}, "
+        f"Activity Level: {p.get('activity_level')}, "
+        f"Dietary Preference: {p.get('dietary_preference')}, "
+        f"Meals Per Day: {p.get('meals_per_day')}"
     )

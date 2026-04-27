@@ -169,6 +169,48 @@ def _clean_tool_reply(result: dict) -> dict:
     return result
 
 
+_NO_QUESTIONS_PREFIX = (
+    "IMPORTANT: Never ask the user any questions. "
+    "Never ask for clarification. Use the profile data provided and generate the response immediately. "
+    "If any profile field is empty or missing, make a reasonable assumption and proceed.\n\n"
+)
+
+_AI_TOOLS_WITH_PREAMBLE = {"meal_plan", "workout", "groceries", "recovery", "weekly_report", "recipe", "motivation"}
+
+
+def _build_profile_preamble(profile: dict) -> str:
+    """Build an explicit, unambiguous profile block for LLM prompts.
+
+    Separates allergies from dietary preference so the LLM never confuses them.
+    Handles both React camelCase keys and snake_case memory keys.
+    """
+    goal         = profile.get("goal", "") or ""
+    dietary_pref = (profile.get("dietary_preference", "")
+                    or profile.get("diet", "")) or ""
+    allergies    = (profile.get("allergies", "")
+                    or profile.get("restrictions", "")) or ""
+    disliked     = (profile.get("disliked_foods", "")
+                    or profile.get("dislikedFoods", "")) or ""
+    favorites    = (profile.get("favorite_meals", "")
+                    or profile.get("favoriteMeals", "")) or ""
+    cuisine      = profile.get("cuisine", "") or "any"
+    budget       = profile.get("budget", "") or "moderate"
+    meals_per_day = (str(profile.get("meals_per_day", ""))
+                     or str(profile.get("mealsPerDay", ""))) or "3"
+
+    return (
+        "User profile (use these fields exactly as stated):\n"
+        f"- Goal: {goal or 'not specified'}\n"
+        f"- Dietary preference (food style the user LIKES, e.g. vegan/keto): {dietary_pref or 'none'}\n"
+        f"- Allergies / Exclusions (NEVER include these in any meal, ingredient, or suggestion): {allergies or 'none'}\n"
+        f"- Disliked foods (avoid these): {disliked or 'none'}\n"
+        f"- Favorite meals (prioritize these when relevant): {favorites or 'none'}\n"
+        f"- Preferred cuisine: {cuisine}\n"
+        f"- Budget: {budget}\n"
+        f"- Meals per day: {meals_per_day}\n\n"
+    )
+
+
 def clean_markdown(text: str) -> str:
     """Strip markdown formatting so plain-text frontends render cleanly."""
     # Remove header markers (### ## #) but keep the heading text
@@ -280,6 +322,8 @@ def _run_ai_tool(tool_name: str, profile: dict, logs: dict) -> dict[str, Any]:
         }
 
     instruction = ctx.get("instruction_for_agent", "")
+    if tool_name in _AI_TOOLS_WITH_PREAMBLE:
+        instruction = _NO_QUESTIONS_PREFIX + _build_profile_preamble(profile) + instruction
     text = _llm().invoke(instruction).content.strip()
 
     parsed = _parse_json_text(text) if tool_name in _JSON_TOOLS else None
