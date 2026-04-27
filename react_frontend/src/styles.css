@@ -1191,3 +1191,25 @@ main {
 [data-theme="dark"] .daily-plan [class*="item"] span {
   color: #2d2d2d !important;
 }
+
+/* ── Dark mode: board/kanban/nutrition DOM class names ───────────────────── */
+
+[data-theme="dark"] .board-row,
+[data-theme="dark"] .kanban-column,
+[data-theme="dark"] .nutrition-slot,
+[data-theme="dark"] .board-card {
+  background: #2d2d2d !important;
+  color: #ffffff !important;
+  border-color: #444444 !important;
+}
+
+[data-theme="dark"] .board-row p,
+[data-theme="dark"] .board-row span,
+[data-theme="dark"] .board-row h3,
+[data-theme="dark"] .board-row h4,
+[data-theme="dark"] .kanban-column p,
+[data-theme="dark"] .kanban-column span,
+[data-theme="dark"] .nutrition-slot p,
+[data-theme="dark"] .nutrition-slot span {
+  color: #ffffff !important;
+}
