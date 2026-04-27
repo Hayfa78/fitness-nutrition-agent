@@ -741,60 +741,6 @@ def generate_motivation(data: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def fetch_exercises_by_muscle(data: dict) -> dict:
-    import requests
-
-    muscle_categories = {
-        "chest": 11,
-        "back": 12,
-        "shoulders": 13,
-        "upper arms": 8,
-        "lower arms": 9,
-        "abs": 10,
-        "legs": 14,
-        "calves": 15,
-        "cardio": 1,
-    }
-
-    target = data.get("muscle_group", "chest").lower()
-    category_id = muscle_categories.get(target, 11)
-
-    try:
-        url = f"https://wger.de/api/v2/exerciseinfo/?format=json&language=2&category={category_id}&limit=8"
-        response = requests.get(url, timeout=15)
-        response.raise_for_status()
-        results = response.json().get("results", [])
-
-        exercises = []
-        for ex in results:
-            translations = ex.get("translations", [])
-            for t in translations:
-                if t.get("language") == 2 and t.get("name"):
-                    exercises.append(t.get("name"))
-                    break
-
-        if not exercises:
-            return {
-                "ok": False,
-                "message": "No exercises found for this muscle group.",
-                "muscle_group": target,
-            }
-
-        return {
-            "ok": True,
-            "muscle_group": target,
-            "exercises": exercises,
-            "count": len(exercises),
-            "source": "wger.de Exercise Database",
-        }
-    except Exception as e:
-        return {
-            "ok": False,
-            "message": f"API error: {str(e)}",
-            "muscle_group": target,
-        }
-
-
 def enforce_dietary_restrictions(data: dict[str, Any]) -> dict[str, Any]:
     meal = _text(data.get("meal") or data.get("food"), "")
     profile = _profile_from_input(data)

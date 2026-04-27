@@ -23,7 +23,6 @@ from tools import (
     check_goal_feasibility,
     enforce_dietary_restrictions,
     estimate_meal,
-    fetch_exercises_by_muscle,
     generate_grocery_list,
     generate_meal_plan,
     generate_motivation,
@@ -311,15 +310,6 @@ def generate_motivation_tool(mood: str = "neutral") -> dict[str, Any]:
 
 
 @tool
-def fetch_exercises_tool(muscle_group: str) -> dict[str, Any]:
-    """Fetch real exercises for a specific muscle group from the wger.de exercise database.
-    Available muscle groups: chest, back, shoulders, upper arms, lower arms, abs, legs, calves, cardio.
-    ALWAYS call this when the user asks for exercises for a specific muscle group or wants
-    to know what exercises target a specific muscle."""
-    return fetch_exercises_by_muscle({"muscle_group": muscle_group})
-
-
-@tool
 def enforce_dietary_restrictions_tool(meal: str) -> dict[str, Any]:
     """Check whether a meal violates the user's dietary restrictions or allergies.
     Call this before recommending a meal to a user with known dietary restrictions."""
@@ -349,7 +339,6 @@ TOOLS = [
     generate_recipe_tool,
     generate_motivation_tool,
     enforce_dietary_restrictions_tool,
-    fetch_exercises_tool,
 ]
 
 SYSTEM_PROMPT = """You are FitAI, a fitness and nutrition assistant powered by Gemini.
@@ -409,11 +398,6 @@ MANDATORY TOOL RULES — you MUST follow every one, every time
 
 17. When a user with restrictions asks about a specific meal →
     call enforce_dietary_restrictions_tool first.
-
-18. When the user asks for exercises for ANY muscle group
-    (chest, back, legs, arms, biceps, triceps, shoulders,
-    abs, calves, cardio) → ALWAYS call fetch_exercises_tool
-    immediately with the muscle group name.
 
 ════════════════════════════════════════════════════════════
 3-TIER KNOWLEDGE ROUTING
