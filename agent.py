@@ -440,28 +440,32 @@ instruction_for_agent value to generate the full structured answer.
 
 
 def _extract_reply(messages: list) -> str:
-    """Return the last non-empty AI text from a LangGraph messages list.
-
-    Handles two Gemini quirks:
-    - content returned as a list of parts instead of a plain string
-    - last message being a ToolMessage after a tool call chain
-    """
     for msg in reversed(messages):
-        # Skip tool result messages
+        # Skip everything that is not an AI response
         if isinstance(msg, HumanMessage):
             continue
+        if isinstance(msg, SystemMessage):
+            continue
         if type(msg).__name__ == "ToolMessage":
+            continue
+        if type(msg).__name__ == "SystemMessage":
             continue
 
         content = getattr(msg, "content", "")
 
-        # Gemini sometimes returns a list of parts: [{"type": "text", "text": "..."}]
+        # Gemini sometimes returns a list of parts
         if isinstance(content, list):
             parts = [
                 p.get("text", "") if isinstance(p, dict) else str(p)
                 for p in content
             ]
             content = " ".join(p for p in parts if p).strip()
+
+        # Skip if content looks like a system prompt
+        if content and "MANDATORY TOOL RULES" in content:
+            continue
+        if content and "STRICT RULES based on profile" in content:
+            continue
 
         if content:
             return content
