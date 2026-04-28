@@ -52,16 +52,8 @@ from tools import (
 MODEL_NAME = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ── One shared agent instance ─────────────────────────────────────────────────
-
-_chat_instance = None
-
-
 def _get_chat() -> FitnessChat:
-    global _chat_instance
-    if _chat_instance is None:
-        _chat_instance = FitnessChat()
-    return _chat_instance
+    return FitnessChat()
 
 
 # ── FastAPI app ───────────────────────────────────────────────────────────────
